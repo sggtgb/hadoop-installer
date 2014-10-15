@@ -15,6 +15,7 @@ clear
 hadoop_link="http://www.interior-dsgn.com/apache/hadoop/common/hadoop-1.2.1/hadoop-1.2.1.tar.gz"
 pig_link="http://apache.petsads.us/pig/pig-0.13.0/pig-0.13.0.tar.gz"
 hive_link="http://apache.spinellicreations.com/hive/hive-0.12.0/hive-0.12.0.tar.gz"
+mysqlDriver="http://dev.mysql.com/get/Download/Connector-J/mysql-connector-java-5.1.33.tar.gz"
 
 #arrays
 link[0]=$hadoop_link
@@ -26,13 +27,13 @@ name[2]="hive-0.12.0"
 tarName[0]="hadoop-1.2.1.tar.gz"
 tarName[1]="pig-0.13.0.tar.gz"
 tarName[2]="hive-0.12.0.tar.gz"
+tarName[3]="mysql-connector-java-5.1.33.tar.gz"
 #variables
 num=3
 flag=0
 
 bashrc="export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64/"
 sedPath=$bashrc
-echo $sedPath
 #make sure the user is running as root for the installations
 if [ $EUID -eq 0 ]; then
 {
@@ -49,6 +50,7 @@ sudo echo ""
 update="$SUDO apt-get -y update"
 java="$SUDO apt-get -y install openjdk-7-jre-headless"
 ssh="$SUDO apt-get -y install openssh-server"
+mysqlInstall="$SUDO apt-get -y install mysql-server"
 wget="wget -q"
 tar="tar -xzf"
 
@@ -108,14 +110,33 @@ while [ $flag -ne 1 ]
 do
         printf "Install Hive? [Y/n] "
         read Hive
-	#comment this out after HW 7 is done
-	#Hive='n'
         if [ "$Hive" == 'Y' ] || [ "$Hive" == 'y' ]; then
         {
                 Hive=1
 		bashrc=$bashrc"export HIVE_INSTALL=$HOME/${name[2]}\n"
 		bashrc=$bashrc'export PATH=$PATH:$HIVE_INSTALL/bin\n'
                 flag=1
+		flag2=0
+		while [ $flag2 -ne 1 ]
+		do
+       			printf "\tInstall Mysql with Hive? [Y/n] "
+        		read Mysql
+        		if [ "$Mysql" == 'Y' ] || [ "$Mysql" == 'y' ]; then
+        		{
+               	 		Mysql=1
+                		flag2=1
+       	 		}
+		        elif [ "$Mysql" == 'N' ] || [ "$Mysql" == 'n' ]; then
+		        {
+                		Mysql=0
+		                flag2=1
+		        }
+		        else
+		        {
+		                printf "Unexpected Input\n"
+		        }
+		        fi
+		done
         }
         elif [ "$Hive" == 'N' ] || [ "$Hive" == 'n' ]; then
         {
@@ -130,6 +151,7 @@ do
 done
 flag=0
 
+
 #this could be more efficient but im lazy
 install[0]=$Hadoop
 install[1]=$Pig
@@ -141,6 +163,13 @@ $update > /dev/null
 printf "\t\t\tDone\nInstalling Java..."
 $java > /dev/null
 printf "\t\t\tDone\n"
+if [ $Mysql -eq 1 ]; then
+{
+        printf "Installing Mysql..."
+        $mysqlInstall
+        printf "\t\t\tDone\n"
+}
+fi
 
 #download the tar.gz files needed
 for ((flag=0; flag<num; flag++)) {
@@ -162,6 +191,11 @@ $ssh > /dev/null
 ssh-keygen -q -t rsa -P "" -f ~/.ssh/id_rsa
 cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
 printf "\t\t\tDone\n"
+#remember to >> this to the ~/.bashrc
+printf "Editing bashrc file...\t\t\t"
+printf "$bashrc" >> ~/.bashrc
+printf "Done\n"
+source ~/.bashrc
 printf "Editing config files for:\n\t"
 if [ ${install[0]} -eq 1 ]; then 
 {
@@ -188,19 +222,103 @@ fi
 
 if [ ${install[2]} -eq 1 ]; then
 {
-	printf "Hive:\n\t\t"
-	printf "Hive configs will be implemented after I do lab 7.1\n\tDone\n"
+	hiveSite='<?xml version="1.0"?>\n'
+	hiveSite='<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>\n\n'
+	if [ $Mysql -eq 1 ]; then
+	{
+		printf "Hive:\n\t\t"
+		printf "hive-site.xml..."
+			hiveSite=$hiveSite"<configuration>\n"
+
+			#Connection URL
+			hiveSite=$hiveSite"\t<property>\n"
+			hiveSite=$hiveSite"\t\t<name>javax.jdo.option.ConnectionURL</name>\n"
+			hiveSite=$hiveSite"\t\t<value>jdbc:mysql://localhost/hive_db?createDatabaseIfNotExist=true</value>\n"
+			hiveSite=$hiveSite"\t\t<description>JDBC connect string for a JDBC metastore</description>\n"
+			hiveSite=$hiveSite"\t</property>\n"
+
+			#Connection Driver Name
+			hiveSite=$hiveSite"\t<property>\n"
+                        hiveSite=$hiveSite"\t\t<name>javax.jdo.option.ConnectionDriverName</name>\n"
+                        hiveSite=$hiveSite"\t\t<value>com.mysql.jdbc.Driver</value>\n"
+                        hiveSite=$hiveSite"\t\t<description>Driver class name for a JDBC metastore</description>\n"
+                        hiveSite=$hiveSite"\t</property>\n"
+
+			#jdbc driver
+			hiveSite=$hiveSite"\t<property>\n"
+                        hiveSite=$hiveSite"\t\t<name>hive.stats.jdbcdriver</name>\n"
+                        hiveSite=$hiveSite"\t\t<value>com.mysql.jdbs.Driver</value>\n"
+                        hiveSite=$hiveSite"\t\t<description>The JDBS driver for the database that stores temporary hive statistics.</description>\n"
+                        hiveSite=$hiveSite"\t</property>\n"
+
+			#Connection User Name
+			hiveSite=$hiveSite"\t<property>\n"
+                        hiveSite=$hiveSite"\t\t<name>javax.jdo.option.COnnectionUserName</name>\n"
+                        hiveSite=$hiveSite"\t\t<value>root</value>\n"
+                        hiveSite=$hiveSite"\t\t<description>username to use against metastore database</description>\n"
+                        hiveSite=$hiveSite"\t</property>\n"
+			
+			#Connection Password
+			hiveSite=$hiveSite"\t<property>\n"
+                        hiveSite=$hiveSite"\t\t<name>javax.jdo.option.ConnectionPassword</name>\n"
+                        hiveSite=$hiveSite"\t\t<value>$pass</value>\n"
+                        hiveSite=$hiveSite"\t\t<description>password to use against metastore database</description>\n"
+                        hiveSite=$hiveSite"\t</property>\n"
+
+			#war file
+			hiveSite=$hiveSite"\t<property>\n"
+                        hiveSite=$hiveSite"\t\t<name>hive.hwi.war.file</name>\n"
+                        hiveSite=$hiveSite"\t\t<value>lib/hive-hwi-0.12.0.war</value>\n"
+                        hiveSite=$hiveSite"\t\t<description>This sets the path to the HWI war file</description>\n"
+                        hiveSite=$hiveSite"\t</property>\n"
+						hiveSite=$hiveSite"</configuration>\n"
+
+			#write the file
+			printf "$hiveSite" > $HOME/${name[2]}/conf/hive-site.xml
+			mkdir $HOME/${name[2]}/conf/hadoop-conf/
+			printf "$hiveSite" > $HOME/${name[2]}/conf/hadoop-conf/hive-site.xml
+		printf "done\n"
+		printf "\t\tInstalling mysql drivers..."
+			cd $HOME/${name[2]}/lib/
+			$wget $mysqlDriver
+			$tar ${tarName[3]}
+			cd mysql-connector-java-5.1.33
+			mv mysql-connector-java-5.1.33-bin.jar ../
+			cd ../
+			rm -R mysql-connector-java-5.1.33
+		printf "\tdone\n\tDone\n"
+	}
+	else
+	{
+		printf "Hive:\n\t\t"
+		printf "hive-site.xml..."
+			hiveSite=$hiveSite"<configuration>\n"
+			hiveSite=$hiveSite"\t<property>\n"
+			hiveSite=$hiveSite"\t\t<name>javax.jdo.option.ConnectionURL</name>\n"
+			hiveSite=$hiveSite"\t\t<value>jdbc:derby:;databaseName="$HOME"/metaStore_db;create=true</value>\n"
+			hiveSite=$hiveSite"\t\t<description>JDBC connect string for a JDBC metastore</description>\n"
+			hiveSite=$hiveSite"\t</property>\n"
+			hiveSite=$hiveSite"</configuration>"
+			printf "$hiveSite" > $HOME/${name[2]}/conf/hive-site.xml
+		printf "done\n"
+		printf "\t\tCreating directories..."
+			$SUDO mkdir -p /user/hive/warehouse
+			$SUDO chmod a+rwx /user/hive/warehouse
+			#hadoop fs -mkdir /user/hive/warehouse
+			#hadoop fs -chmod g+w /user/hive/warehouse
+			$SUDO mkdir -p /tmp/$USER
+			$SUDO chmod a+rwx /tmp/$USER
+			$SUDO mkdir -p /tmp/$USER/mapred/local
+			$SUDO chmod a+rwx /tmp/$USER/mapred/local
+			#hadoop fs -mkdir /tmp/$USER
+			#hadoop fs -chmod g+w /tmp/$USER
+		printf "\tdone\n\tdone\n"
+	}
+	fi
 }
 fi
 
 printf "Done\n"
-
-
-#remember to >> this to the ~/.bashrc
-printf "Editing bashrc file...\t\t\t"
-printf "$bashrc" >> ~/.bashrc
-printf "Done\n"
-source ~/.bashrc
 printf "\nInstallations complete\n"
 exit
 
