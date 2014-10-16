@@ -170,7 +170,9 @@ if [ $Mysql -eq 1 ]; then
         printf "\t\t\tDone\n"
 }
 fi
-
+printf "\nPlease enter the password you used for Mysql: "
+read pass
+printf "\n"
 #download the tar.gz files needed
 for ((flag=0; flag<num; flag++)) {
 	if [ ${install[$flag]} -eq 1 ]; then
@@ -223,7 +225,7 @@ fi
 if [ ${install[2]} -eq 1 ]; then
 {
 	hiveSite='<?xml version="1.0"?>\n'
-	hiveSite='<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>\n\n'
+	hiveSite=$hiveSite'<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>\n\n'
 	if [ $Mysql -eq 1 ]; then
 	{
 		printf "Hive:\n\t\t"
@@ -247,13 +249,13 @@ if [ ${install[2]} -eq 1 ]; then
 			#jdbc driver
 			hiveSite=$hiveSite"\t<property>\n"
                         hiveSite=$hiveSite"\t\t<name>hive.stats.jdbcdriver</name>\n"
-                        hiveSite=$hiveSite"\t\t<value>com.mysql.jdbs.Driver</value>\n"
-                        hiveSite=$hiveSite"\t\t<description>The JDBS driver for the database that stores temporary hive statistics.</description>\n"
+                        hiveSite=$hiveSite"\t\t<value>com.mysql.jdbc.Driver</value>\n"
+                        hiveSite=$hiveSite"\t\t<description>The JDBC driver for the database that stores temporary hive statistics.</description>\n"
                         hiveSite=$hiveSite"\t</property>\n"
 
 			#Connection User Name
 			hiveSite=$hiveSite"\t<property>\n"
-                        hiveSite=$hiveSite"\t\t<name>javax.jdo.option.COnnectionUserName</name>\n"
+                        hiveSite=$hiveSite"\t\t<name>javax.jdo.option.ConnectionUserName</name>\n"
                         hiveSite=$hiveSite"\t\t<value>root</value>\n"
                         hiveSite=$hiveSite"\t\t<description>username to use against metastore database</description>\n"
                         hiveSite=$hiveSite"\t</property>\n"
@@ -261,7 +263,7 @@ if [ ${install[2]} -eq 1 ]; then
 			#Connection Password
 			hiveSite=$hiveSite"\t<property>\n"
                         hiveSite=$hiveSite"\t\t<name>javax.jdo.option.ConnectionPassword</name>\n"
-                        hiveSite=$hiveSite"\t\t<value>$pass</value>\n"
+                        hiveSite=$hiveSite"\t\t<value>"$pass"</value>\n"
                         hiveSite=$hiveSite"\t\t<description>password to use against metastore database</description>\n"
                         hiveSite=$hiveSite"\t</property>\n"
 
